@@ -10,23 +10,21 @@
 #include <arpa/inet.h> 
 #include <sys/wait.h>
 
-//UDP(with server): 32718 
-//TCP(with client): 33718
+#define TCP_PORT "33718"    //TCP port(with client): 33718
+#define UDP_PORT "32718"    //UDP port(with server): 32718 
+#define HOST "localhost"
+#define BACKLOG 10 // how many pending connections queue will hold
+#define PORTA "21859"
+#define PORTB "22859"
+#define PORTC "23859"
 
 //Main server will ask each of Backend servers which
 //countries they are responsible for.
 //Main server will construct a data structure to book-keep such information
 
 
-
-//listen to clients
-
-
-//call serverA and serverB
-
-
 //start main server
-void start_server() 
+void ask_country() 
 {
     int status;
     struct addrinfo hints;
@@ -48,6 +46,9 @@ void start_server()
 
     freeaddrinfo(servinfo); // 釋放這個鏈結串列
 }
+//listen to clients
+
+//call serverA and serverB
 
 int main(int argc, char *argv[]) 
 {
