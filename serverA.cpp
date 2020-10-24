@@ -68,6 +68,7 @@ void create_graph(vector< vector<string> > allusers){
     //     }
     //     cout << endl;
 	// }
+
     graphs.push_back(adjacent_matrix);
 }
 
@@ -164,7 +165,7 @@ void read_file()
     //     cout << itr->first << " => index " << itr->second << endl;
     // }
     // map<int, string>::const_iterator itr2;
-    // for (itr2 = reindex_to_userId[0].begin(); itr2 != reindex_to_userId[0].end(); ++itr2){
+    // for (itr2 = reindex_to_userId[1].begin(); itr2 != reindex_to_userId[1].end(); ++itr2){
     //     cout << itr2->first << " => index " << itr2->second << endl;
     // }
 
@@ -179,8 +180,6 @@ void start_server(){
 
 string query(string userId, string countryName){
     cout << "-------------query-------------" << endl;
-
-
     // get the index of the country in countryList
     int countryIndex = -1;
     for(int i = 0; i < countryList.size(); i++){
@@ -237,29 +236,40 @@ string query(string userId, string countryName){
     int max_common_friend_count = 0;
     int max_common_userIndex = -1; //index of the user who has max common friend with target
     for (max_itr = unconnected.begin(); max_itr != unconnected.end(); ++max_itr){
-        cout << "unconnected User index: " << max_itr->first;//
-        cout << " => common friend count " << max_itr->second << endl;//
+        // cout << "unconnected User index: " << max_itr->first;//
+        // cout << " => common friend count " << max_itr->second << endl;//
+        
         // if user has more common friend than current max
         if(max_itr->second > max_common_friend_count){
             max_common_friend_count = max_itr->second;
             max_common_userIndex = max_itr->first;
-            cout << "current max count= " << max_itr->second;//
+            cout << "current max count= " << max_common_friend_count;//
             cout << " from user index= " << max_itr->first << endl;//
         }else if(max_itr->second == max_common_friend_count && max_itr->second != 0){
-
+            // cout << max_itr->first<<endl;
             int curr_smallest_id = atoi(reindex_to_userId[countryIndex].at(max_common_userIndex).c_str());
-            int comparing_id = atoi(reindex_to_userId[countryIndex].at(max_itr->second).c_str());
+            int comparing_id = atoi(reindex_to_userId[countryIndex].at(max_itr->first).c_str());
             cout << "curr_smallest_id:" << curr_smallest_id;//
-            cout << " comparing_id:" << comparing_id << endl;
+            cout << " comparing_id:" << comparing_id << endl;//
             if(comparing_id < curr_smallest_id){
-                max_common_userIndex = max_itr->second;
+                max_common_userIndex = max_itr->first;
             }
-            cout << "current max count= " << max_itr->second;//
+            cout << "current max count= " << max_common_friend_count;//
             cout << " from user index= " << max_common_userIndex << endl;//
         }
     }
+
+
+    // cout << "print out unconnected user and common friend" << endl;
+    // map<int,int>::const_iterator itr;
+    // for (itr = unconnected.begin(); itr != unconnected.end(); ++itr){
+    //     cout << "unconnected User index: " << itr->first << " => count " << itr->second << endl;
+    // }
+
+
     // have common friends with unconnected users
     if(max_common_friend_count != 0){
+        cout << "have common" << endl;//
         cout << "recommend " << max_common_userIndex << endl;//
         return reindex_to_userId[countryIndex].at(max_common_userIndex);
     }
@@ -279,7 +289,7 @@ string query(string userId, string countryName){
                 int curr_smallest_id = atoi(reindex_to_userId[countryIndex].at(max_friend_count).c_str());
                 int comparing_id = atoi(reindex_to_userId[countryIndex].at(i).c_str());
                 cout << "curr_smallest_id:" << curr_smallest_id;//
-                cout << " comparing_id:" << comparing_id << endl;
+                cout << " comparing_id:" << comparing_id << endl;//
                 if(comparing_id < curr_smallest_id){
                     have_max_friend_index = i;
                 }
@@ -292,21 +302,10 @@ string query(string userId, string countryName){
             }
         }
     }
+    cout << "no common" << endl;//
     cout << "recommend " << have_max_friend_index << endl;//
+
     return reindex_to_userId[countryIndex].at(have_max_friend_index);
-
-
-
-    
-    // cout << "print out unconnected user and common friend" << endl;
-    // map<int,int>::const_iterator itr;
-    // for (itr = unconnected.begin(); itr != unconnected.end(); ++itr){
-    //     cout << "unconnected User index: " << itr->first << " => count " << itr->second << endl;
-    // }
-    
-
-    
-    // cout << "The server A has sent the result to Main Server" << endl;
 
 }
 
@@ -355,21 +354,22 @@ int main(int argc, char *argv[])
         cout << "user not found" << endl;//delete this line, is printed at query
     }
     // string q4 = query("0", "Canada");
-    string q4 = query("112", "jpYsAHXfNwOVKaFk");
-    if(q4 == "NONE"){
-        cout << "Here are the result: None" << endl;
-    }else if(q4 != "USER_NOT_FOUND"){
-        cout << "Here are the result: User<";
-        cout << q4 << ">" << endl;
-    }else{
-        cout << "user not found" << endl;//delete this line, is printed at query
-    }
+    // string q4 = query("112", "jpYsAHXfNwOVKaFk");
+    // if(q4 == "NONE"){
+    //     cout << "Here are the result: None" << endl;
+    // }else if(q4 != "USER_NOT_FOUND"){
+    //     cout << "Here are the result: User<";
+    //     cout << q4 << ">" << endl;
+    // }else{
+    //     cout << "user not found" << endl;//delete this line, is printed at query
+    // }
 
     // pass the return value of query back to main
     
     
 
     // respond_to_main();?
+    // cout << "The server A has sent the result to Main Server" << endl;
     
     
 }
