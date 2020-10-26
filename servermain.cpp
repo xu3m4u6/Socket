@@ -17,6 +17,7 @@
 #include <map>
 #include <iterator>
 #include <iomanip>
+#include <signal.h>
 using namespace std;
 
 // Constants
@@ -187,6 +188,96 @@ void print_countryMap()
 
 }
 
+void sigchld_handler(int s)
+{
+  while(waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+void start_server_TCP()
+{
+    int sockfd, new_fd; // 在 sock_fd 進行 listen，new_fd 是新的連線
+    struct addrinfo hints, *servinfo;
+    struct sockaddr_storage their_addr; // 連線者的位址資訊 
+    socklen_t sin_size;
+    struct sigaction sa;
+    int yes=1;
+    char s[INET6_ADDRSTRLEN];
+    int rv;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    }
+
+    // bind
+    if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
+        servinfo->ai_protocol)) == -1) {
+        perror("server: socket");
+    }
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+        sizeof(int)) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
+
+    if (bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+        close(sockfd);
+        perror("server: bind");
+    }
+
+    freeaddrinfo(servinfo); // 全部都用這個 structure
+
+    if (listen(sockfd, BACKLOG) == -1) {
+        perror("listen");
+        exit(1);
+    }
+
+    sa.sa_handler = sigchld_handler; // 收拾全部死掉的 processes
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
+
+    printf("server: waiting for connections...\n");
+
+    while(1) { // 主要的 accept() 迴圈
+        sin_size = sizeof their_addr;
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_fd == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(their_addr.ss_family,
+        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+        printf("server: got connection from %s\n", s);
+
+        char buf[MAXBUFLEN];
+        if (!fork()) { // 這個是 child process
+            close(sockfd); // child 不需要 listener
+            if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
+            {
+                perror("recv");
+            }
+            // send msg to serverA or serverB
+            // get result from serverA or serverB
+            if (send(new_fd, , , 0) == -1) // to be finished
+            {
+                perror("send");
+            }
+            close(new_fd);
+            exit(0);
+        }
+        close(new_fd); // parent 不需要這個
+    }
+}
 
 int main(int argc, char *argv[]) 
 {
@@ -196,19 +287,19 @@ int main(int argc, char *argv[])
     get_countrylist(1); //get country list from server B
     print_countryMap();
 
-
     // while(true){
         // listen_to_client();
         // process_query();
         // respond_to_client();
     // }
 
-    
-    
-    // freeaddr info
+    start_server_TCP();
+
+    // freeaddr info for UDP
     freeaddrinfo(serverMainInfo);
     freeaddrinfo(serverAInfo);
     freeaddrinfo(serverBInfo);
+
     // close socket
     close(sockfd_UDP);
 }
