@@ -193,15 +193,62 @@ void sigchld_handler(int s)
   while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
+int process_query()
+{
+    //decide A or B //not found
+    //send udp to serverA or serverB
+    //receive query result from serverA or B
+    //return 
+}
+
+void listen_to_clients(int sockfd)
+{
+    socklen_t sin_size;
+    struct sockaddr_storage their_addr; // 連線者的位址資訊 
+    int new_fd;
+    char s[INET6_ADDRSTRLEN];
+    char buf[MAXBUFLEN];
+
+    while(1) { // 主要的 accept() 迴圈
+        sin_size = sizeof their_addr;
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (new_fd == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(their_addr.ss_family,
+        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
+        printf("server: got connection from %s\n", s);
+
+        if (!fork()) { // 這個是 child process
+            close(sockfd); // child 不需要 listener
+            if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
+            {
+                perror("recv");
+            }
+
+            // send msg to serverA or serverB
+            // get result from serverA or serverB
+            int result = process_query();
+            
+            if (send(new_fd, &result, , 0) == -1) // to be finished
+            {
+                perror("send");
+            }
+            close(new_fd);
+            exit(0);
+        }
+        close(new_fd); // parent 不需要這個
+    }
+}
+
 void start_server_TCP()
 {
     int sockfd, new_fd; // 在 sock_fd 進行 listen，new_fd 是新的連線
     struct addrinfo hints, *servinfo;
-    struct sockaddr_storage their_addr; // 連線者的位址資訊 
-    socklen_t sin_size;
     struct sigaction sa;
     int yes=1;
-    char s[INET6_ADDRSTRLEN];
     int rv;
 
     memset(&hints, 0, sizeof hints);
@@ -247,36 +294,7 @@ void start_server_TCP()
 
     printf("server: waiting for connections...\n");
 
-    while(1) { // 主要的 accept() 迴圈
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-
-        inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
-        char buf[MAXBUFLEN];
-        if (!fork()) { // 這個是 child process
-            close(sockfd); // child 不需要 listener
-            if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
-            {
-                perror("recv");
-            }
-            // send msg to serverA or serverB
-            // get result from serverA or serverB
-            if (send(new_fd, , , 0) == -1) // to be finished
-            {
-                perror("send");
-            }
-            close(new_fd);
-            exit(0);
-        }
-        close(new_fd); // parent 不需要這個
-    }
+    listen_to_clients(sockfd);
 }
 
 int main(int argc, char *argv[]) 
@@ -286,12 +304,6 @@ int main(int argc, char *argv[])
     get_countrylist(0); //get country list from server A
     get_countrylist(1); //get country list from server B
     print_countryMap();
-
-    // while(true){
-        // listen_to_client();
-        // process_query();
-        // respond_to_client();
-    // }
 
     start_server_TCP();
 
