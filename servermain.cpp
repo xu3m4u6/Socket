@@ -16,6 +16,7 @@
 #include <vector>
 #include <map>
 #include <iterator>
+#include <iomanip>
 using namespace std;
 
 // Constants
@@ -29,8 +30,8 @@ using namespace std;
 
 // global variables
 int sockfd_UDP;
-struct addrinfo hints, *serverMainInfo, *serverAInfo, hints2;
-// a map for mapping country list
+struct addrinfo hints, *serverMainInfo, *serverAInfo, *serverBInfo;
+map<string,int> countryMap;// Mapping country to corresponding backend server
 
 
 // get port, IPv4 or IPv6:
@@ -54,17 +55,9 @@ void *get_in_addr(struct sockaddr *sa)
 void start_server_UDP()
 {
     int status;
-    int numbytes;
-    struct sockaddr_storage their_addr;
-    char buf[MAXBUFLEN];
-    socklen_t addr_len;
-    char s[INET6_ADDRSTRLEN];
-
     memset(&hints, 0, sizeof hints);
-
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE; // 使用我的 IP
     
     // getaddr info
     if ((status = getaddrinfo(HOSTNAME, UDP_PORT_MAIN, &hints, &serverMainInfo)) != 0) 
@@ -72,7 +65,6 @@ void start_server_UDP()
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(0);
     }
-
     // create UDP socket
     if ((sockfd_UDP = socket(serverMainInfo->ai_family, serverMainInfo->ai_socktype,
     serverMainInfo->ai_protocol)) == -1) {
@@ -84,9 +76,21 @@ void start_server_UDP()
         perror("serverMain: binding failed");
     }
 
+    // getaddr info of serverA
+    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_A, &hints, &serverAInfo)) != 0) 
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(0);
+    }
+    // getaddr info of serverB
+    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_B, &hints, &serverBInfo)) != 0) 
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(0);
+    }
 }
 
-void get_countrylist_from_A() 
+void get_countrylist(int serverID) 
 {
     int status;
     int numbytes;
@@ -95,37 +99,30 @@ void get_countrylist_from_A()
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-
-
-
-    // ?????????????????????????????????
-    memset(&hints2, 0, sizeof hints2);
-    hints2.ai_family = AF_UNSPEC;
-    hints2.ai_socktype = SOCK_DGRAM;
-
-    // getaddr info
-    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_A, &hints2, &serverAInfo)) != 0) 
-    {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-        exit(0);
-    }
-
-    // requesting server A's country list 
+    // requesting server's country list 
     string msg = "waiting for country list";
 
-    if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
-        serverAInfo->ai_addr, serverAInfo->ai_addrlen)) == -1) {
-        perror("servermain: sendto ??????");
-        exit(1);
+    if(serverID == 0){
+        if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
+            serverAInfo->ai_addr, serverAInfo->ai_addrlen)) == -1) {
+            perror("servermain: fail to send request to serverA");
+            exit(1);
+        }
+        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
+
+        cout << "The servermain has sent a request for country list to ServerA" << endl;//
+    }else{
+        if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
+            serverBInfo->ai_addr, serverBInfo->ai_addrlen)) == -1) {
+            perror("servermain: fail to send request to serverB");
+            exit(1);
+        }
+        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
+
+        cout << "The servermain has sent a request for country list to ServerB" << endl;//
     }
-    printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
-
-    cout << "The servermain has sent a request for country list to ServerA" << endl;//
     
-
-    
-
-    // receiving
+    // receiving country list
     printf("serverMain: waiting to recvfrom...\n");
     addr_len = sizeof their_addr;
     if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
@@ -134,34 +131,84 @@ void get_countrylist_from_A()
         perror("recvfrom");
         exit(1);
     }
-    
     // print received info
     printf("serverMain: got packet from %s port %d\n",
     inet_ntop(their_addr.ss_family,
     get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
-    ntohs(get_in_port((struct sockaddr *)&their_addr)));
-    printf("serverMain: packet is %d bytes long\n", numbytes);
+    ntohs(get_in_port((struct sockaddr *)&their_addr)));//
+    printf("serverMain: packet is %d bytes long\n", numbytes);//
     buf[numbytes] = '\0';
-    printf("serverMain: packet contains \"%s\"\n", buf);
+    printf("serverMain: packet contains \"%s\"\n", buf);//
 
-    // store countryList into 
-    vector<string> result; 
+    cout << "The Main server has received the country list from server ";
+    if(serverID == 0){
+        cout << "A using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
+    }else{
+        cout << "B using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
+    }
+
+    // store countryList into countryMap
     istringstream iss(buf); 
-    for(string buf; iss >> buf; ) 
-        result.push_back(buf);
-
-    
+    for(string countryName; iss >> countryName; ) 
+        countryMap[countryName] = serverID;
 }
+
+void print_countryMap()
+{   
+    vector<string> serverA;
+    vector<string> serverB;
+    int max;
+    const char separator = ' ';
+    const int nameWidth = 30;
+    cout << left << setw(nameWidth) << setfill(separator) << "Server A" << "|Server B" << endl;
+    map<string,int>::const_iterator itr;
+    for (itr = countryMap.begin(); itr != countryMap.end(); ++itr){
+        if(itr->second == 0){
+            serverA.push_back(itr->first);
+        }else{
+            serverB.push_back(itr->first);
+        }
+    }
+    if(serverA.size() > serverB.size()){
+        max = serverA.size(); 
+    }else{
+        max = serverB.size();
+    }
+    
+    for(int i = 0; i < max; i++){
+        if(i < serverA.size() && i < serverB.size()){
+            cout << left << setw(nameWidth) << setfill(separator) << serverA[i] << "|" << serverB[i]<< endl;
+        }else if(i > serverA.size()-1){
+            cout << "                              " << "|" << serverB[i]<< endl;    
+        }else if(i > serverB.size()-1){
+            cout << left << setw(nameWidth) << setfill(separator) << serverA[i] << "|" << endl;    
+        }
+    } 
+
+}
+
 
 int main(int argc, char *argv[]) 
 {
     start_server_UDP();
-    get_countrylist();
+
+    get_countrylist(0); //get country list from server A
+    get_countrylist(1); //get country list from server B
+    print_countryMap();
+
+
+    // while(true){
+        // listen_to_client();
+        // process_query();
+        // respond_to_client();
+    // }
+
     
-    // process_query();
     
     // freeaddr info
     freeaddrinfo(serverMainInfo);
+    freeaddrinfo(serverAInfo);
+    freeaddrinfo(serverBInfo);
     // close socket
     close(sockfd_UDP);
 }
