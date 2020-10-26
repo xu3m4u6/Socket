@@ -18,13 +18,23 @@
 
 using namespace std;
 
-//UDP: 30718
 
+// Constants
+#define HOSTNAME "127.0.0.1" // server address
+#define UDP_PORT_MAIN "32718"
+#define UDP_PORT_A "30718" //server A port number
+#define MAXBUFLEN 1000
+
+// global variables
 vector<vector<vector<int> > > graphs; //keep the connection graph of every country
 vector<string> countryList; //contains all of the country names in file
 map<string,int> countryIndex; //keep country->index mapping for each country
 vector<map<string, int> > userId_to_reindex; //keep userID->reindex mapping for every country
 vector<map<int, string> > reindex_to_userId; //keep reindex->userID mapping for every country
+
+int sockfd_UDP; // ServerA UDP socket
+struct addrinfo hints, *serverMainInfo, *serverAInfo; //serverMainInfo 將指向結果
+
 
 
 // create the graph of one country
@@ -156,10 +166,97 @@ void read_file()
 
 }
 
-void start_server(){
+void start_serverA(){
+    int status;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    // mainserver info for send
+    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_MAIN, &hints, &serverMainInfo)) != 0) 
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(0);
+    }
+
+    // serverA info for bind
+    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_A, &hints, &serverAInfo)) != 0) 
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(0);
+    }
+
+    // create UDP socket
+    if ((sockfd_UDP = socket(serverAInfo->ai_family, serverAInfo->ai_socktype, serverAInfo->ai_protocol)) == -1) {
+        perror("serverA: fail to create socket");
+    }
+    // bind
+    if (bind(sockfd_UDP, serverAInfo->ai_addr, serverAInfo->ai_addrlen) == -1) {
+        close(sockfd_UDP);
+        perror("serverA: binding failed");
+    }
     cout << "The server A is up and running using UDP on port <30718>" << endl;
+}
+
+// get port, IPv4 or IPv6:
+in_port_t get_in_port(struct sockaddr *sa)
+{
+    if (sa->sa_family == AF_INET)
+        return (((struct sockaddr_in*)sa)->sin_port);
+
+    return (((struct sockaddr_in6*)sa)->sin6_port);
+}
+
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa)
+{
+  if (sa->sa_family == AF_INET) {
+    return &(((struct sockaddr_in*)sa)->sin_addr);
+  }
+  return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void send_countrylist() {
+    int numbytes;
+    char buf[MAXBUFLEN];
+    struct sockaddr_storage their_addr;
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
+
+    // receiving
+    printf("serverA: waiting for servermain to startup ...\n");//
+    addr_len = sizeof their_addr;
+    if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
+            (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
     
+    // print received info
+    printf("serverA: got packet from %s port %d\n",
+    inet_ntop(their_addr.ss_family,
+    get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
+    ntohs(get_in_port((struct sockaddr *)&their_addr)));
+    printf("serverA: packet is %d bytes long\n", numbytes);//
+    buf[numbytes] = '\0';
+    printf("serverA: packet contains \"%s\"\n", buf);//
+
+    // send msg
+    string msg;
+    for(int j = 0; j < countryList.size(); j++){
+        msg = msg + " " + countryList[j];
+    }
+    if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
+        serverMainInfo->ai_addr, serverMainInfo->ai_addrlen)) == -1) {
+        perror("serverA: sendto");
+        exit(1);
+    }
+    printf("serverA: sent %d bytes to %s\n", numbytes, UDP_PORT_MAIN);//
+
     cout << "The server A has sent a country list to Main Server" << endl;
+    
 }
 
 string query(string userId, string countryName){
@@ -281,7 +378,6 @@ string query(string userId, string countryName){
         }
     }
     cout << "no common, recommend " << have_max_friend_index << endl;//
-
     return reindex_to_userId[countryIndex].at(have_max_friend_index);
 }
 
@@ -301,9 +397,10 @@ void listen_to_main(){
 
 int main(int argc, char *argv[]) 
 {
-    
+    start_serverA();
     read_file();
-    // start_server();
+    
+    send_countrylist();
     // listen_to_main();
 
     
@@ -311,29 +408,21 @@ int main(int argc, char *argv[])
 
     // test query
     // string q2 = query("78", "Canada");
-    string q2 = query("90", "A");
+    // string q2 = query("90", "A");
     // string q2 = query("162118937", "hSUMJxvw");
-    if(q2 == "NONE"){
-        cout << "Here are the result: None" << endl;
-    }else if(q2 != "USER_NOT_FOUND"){
-        cout << "Here are the result: User<";
-        cout << q2 << ">" << endl;
-    }
-    string q3 = query("11", "Canada");
-    // string q3 = query("468761846", "cYLEUu");
-    if(q3 == "NONE"){
-        cout << "Here are the result: None" << endl;
-    }else if(q3 != "USER_NOT_FOUND"){
-        cout << "Here are the result: User<";
-        cout << q3 << ">" << endl;
-    }
-    // string q4 = query("0", "Canada");
-    // string q4 = query("112", "jpYsAHXfNwOVKaFk");
-    // if(q4 == "NONE"){
+    // if(q2 == "NONE"){
     //     cout << "Here are the result: None" << endl;
-    // }else if(q4 != "USER_NOT_FOUND"){
+    // }else if(q2 != "USER_NOT_FOUND"){
     //     cout << "Here are the result: User<";
-    //     cout << q4 << ">" << endl;
+    //     cout << q2 << ">" << endl;
+    // }
+    // string q3 = query("11", "Canada");
+    // string q3 = query("468761846", "cYLEUu");
+    // if(q3 == "NONE"){
+    //     cout << "Here are the result: None" << endl;
+    // }else if(q3 != "USER_NOT_FOUND"){
+    //     cout << "Here are the result: User<";
+    //     cout << q3 << ">" << endl;
     // }
 
     // pass the return value of query back to main
@@ -342,6 +431,10 @@ int main(int argc, char *argv[])
 
     // respond_to_main();?
     // cout << "The server A has sent the result to Main Server" << endl;
-    
-    
+
+    // close socket
+    freeaddrinfo(serverMainInfo);
+    freeaddrinfo(serverAInfo);
+    close(sockfd_UDP);
+    exit(0);
 }
