@@ -449,9 +449,9 @@ int main(int argc, char *argv[])
     
     send_countrylist();
 
-    // while(1){
-    //     listen_and_respond();
-    // }
+    while(1){
+        listen_and_respond();
+    }
 
 
     // close socket
@@ -460,29 +460,3 @@ int main(int argc, char *argv[])
     close(sockfd_UDP);
     exit(0);
 }
-
-
-
-    // string query_result = query("userID", "countryName");
-
-    // test query
-    // string q2 = query("78", "Canada");
-    // string q2 = query("90", "A");
-    // string q2 = query("162118937", "hSUMJxvw");
-    // if(q2 == "NONE"){
-    //     cout << "Here are the result: None" << endl;
-    // }else if(q2 != "USER_NOT_FOUND"){
-    //     cout << "Here are the result: User<";
-    //     cout << q2 << ">" << endl;
-    // }
-    // string q3 = query("11", "Canada");
-    // string q3 = query("468761846", "cYLEUu");
-    // if(q3 == "NONE"){
-    //     cout << "Here are the result: None" << endl;
-    // }else if(q3 != "USER_NOT_FOUND"){
-    //     cout << "Here are the result: User<";
-    //     cout << q3 << ">" << endl;
-    // }
-
-    // pass the return value of query back to main
-    
