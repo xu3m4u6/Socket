@@ -259,6 +259,10 @@ void send_countrylist() {
     
 }
 
+// return three kinds of result, each result indicates the meaning as below
+// 1. USER_NOT_FOUND: userID is not exist in the country
+// 2. NONE: the query cannot find anyone to recommend
+// 3. recommended userID: the query find a recommendation
 string query(string userId, string countryName){
     cout << "-------------query-------------" << endl;//
     // get the index of the country in countryList
@@ -381,16 +385,59 @@ string query(string userId, string countryName){
     return reindex_to_userId[countryIndex].at(have_max_friend_index);
 }
 
-void listen_to_main(){
-    cout << "The server A has received request for finding possible friends of User<?id?> in <?Countryname?>" << endl;
+// listen to servermain's query request and respond with result
+void listen_and_respond(){
+
+    int numbytes;
+    char buf[MAXBUFLEN];
+    struct sockaddr_storage their_addr;
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
+
+    // receiving
+    printf("serverA: waiting for servermain requests ...\n");//
+    addr_len = sizeof their_addr;
+    if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
+            (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
     
-    // do query here?
+    // print received info
+    printf("serverA: got packet from %s port %d\n",
+    inet_ntop(their_addr.ss_family,
+    get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
+    ntohs(get_in_port((struct sockaddr *)&their_addr)));
+    printf("serverA: packet is %d bytes long\n", numbytes);//
+    buf[numbytes] = '\0';
+    printf("serverA: packet contains \"%s\"\n", buf);//
 
-    // int query_result = query("23", "A");
-    // if(query_result == -1){
-    //     cout << "The server A has sent \"User<?id?> not found\" to Main Server" << endl;
-    // }
+    // get request infomation
+    stringstream ss(buf);
+    string id;
+    string country;
+    ss >> id;
+    ss >> country;
+    cout << "The server A has received request for finding possible friends of User<" << id << "> in <" << country << ">" << endl;
+    
+    // process query and get the result
+    string result;
+    result = query(id, country);
 
+    // send result
+    if ((numbytes = sendto(sockfd_UDP, result.c_str(), result.length(), 0,
+        serverMainInfo->ai_addr, serverMainInfo->ai_addrlen)) == -1) {
+        perror("serverA: fail to send to main with results");
+        exit(1);
+    }
+    printf("serverA: sent %d bytes to %s\n", numbytes, UDP_PORT_MAIN);//
+
+    if(result == "USER_NOT_FOUND"){
+        cout << "The server A has sent \"User<" << id << "> not found\" to Main Server" << endl;
+    }else{
+        cout << "The server A has sent the result to Main Server" << endl;
+    }
 }
 
 
@@ -401,9 +448,21 @@ int main(int argc, char *argv[])
     read_file();
     
     send_countrylist();
-    // listen_to_main();
 
-    
+    // while(1){
+    //     listen_and_respond();
+    // }
+
+
+    // close socket
+    freeaddrinfo(serverMainInfo);
+    freeaddrinfo(serverAInfo);
+    close(sockfd_UDP);
+    exit(0);
+}
+
+
+
     // string query_result = query("userID", "countryName");
 
     // test query
@@ -427,14 +486,3 @@ int main(int argc, char *argv[])
 
     // pass the return value of query back to main
     
-    
-
-    // respond_to_main();?
-    // cout << "The server A has sent the result to Main Server" << endl;
-
-    // close socket
-    freeaddrinfo(serverMainInfo);
-    freeaddrinfo(serverAInfo);
-    close(sockfd_UDP);
-    exit(0);
-}
