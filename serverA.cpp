@@ -449,9 +449,15 @@ int main(int argc, char *argv[])
     
     send_countrylist();
 
+<<<<<<< HEAD
     // while(1){
     //     listen_and_respond();
     // }
+=======
+    while(1){
+        listen_and_respond();
+    }
+>>>>>>> 846ccf63919bc440b9a0b1e9200a627b21cf7872
 
 
     // close socket
@@ -459,6 +465,7 @@ int main(int argc, char *argv[])
     freeaddrinfo(serverAInfo);
     close(sockfd_UDP);
     exit(0);
+<<<<<<< HEAD
 }
 
 
@@ -486,3 +493,6 @@ int main(int argc, char *argv[])
 
     // pass the return value of query back to main
     
+=======
+}
+>>>>>>> 846ccf63919bc440b9a0b1e9200a627b21cf7872
