@@ -11,6 +11,8 @@
 #include <sys/wait.h>
 #include <iostream>
 #include <string> 
+#include <iomanip>
+#include <sstream>
 using namespace std;
 
 
@@ -66,20 +68,23 @@ int main(int argc, char *argv[])
 
     while(1)
     {
-        int id;
+        string id;
         string country;
         cout << "Please enter the User ID: ";
         cin >> id;
         cout << "Please enter the Country Name: ";
         cin >> country;
 
-
-        if (send(sockfd, &id, , 0) == -1)
+        string msg;
+        msg = id + " " + country;
+        if (send(sockfd, msg.c_str(), MAXDATASIZE, 0) == -1)
         {
             perror("send");
         }
         
-        printf("Client2 has sent User'%d' and '%s' to Main Server using TCP\n", id, country);
+        cout << "The client has sent User ";
+        cout << id << "> in <" << country << "> to Main Server using TCP\n" << endl;
+        // printf("The client has sent User'%s' and '%s' to Main Server using TCP\n", id, country.c_str());
 
         sleep(2000);
 
@@ -90,7 +95,21 @@ int main(int argc, char *argv[])
         }
         buf[numbytes] = '\0';
         printf("client: received '%s'\n",buf);
-        printf("Client2 has received results from Main Server:User<user ID1>, User<user ID2> is/are possible friend(s) of User<user ID> in <Country Name>\n", id, country);
+
+        string result;
+        istringstream iss(buf);
+        iss >> result;
+        cout << "client: received " << result << endl;
+        if(result == "COUNTRY_NOT_FOUND") {
+            cout << country << " not found " << endl;
+        } else if (result == "USER_NOT_FOUND") {
+            cout << id << " not found " << endl;
+        } else {
+            cout << "The client has received results from Main Server: User<" << buf << "> is possible friend of User<" ;
+            cout << id << "> in <" << country << ">" << endl;
+        }
+
+        // printf("The client has received results from Main Server:User'%s' is possible friend of User'%s' in '%s'\n", buf, id.c_str(), country.c_str());
     }
     close(sockfd);
 }

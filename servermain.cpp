@@ -118,7 +118,7 @@ void get_countrylist(int serverID)
             perror("servermain: fail to send request to serverB");
             exit(1);
         }
-        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
+        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_B);
 
         cout << "The servermain has sent a request for country list to ServerB" << endl;//
     }
@@ -193,12 +193,85 @@ void sigchld_handler(int s)
   while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-int process_query()
+string send_query(string id, string country, int serverID)
 {
-    //decide A or B //not found
-    //send udp to serverA or serverB
-    //receive query result from serverA or B
-    //return 
+    int status;
+    int numbytes;
+    struct sockaddr_storage their_addr;
+    char buf[MAXBUFLEN];
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
+
+    // requesting server's country list 
+    string msg = id + " " + country;
+
+    if(serverID == 0){
+        if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
+            serverAInfo->ai_addr, serverAInfo->ai_addrlen)) == -1) {
+            perror("servermain: fail to send request to serverA");
+            exit(1);
+        }
+        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
+
+        cout << "The servermain has sent a query request to ServerA" << endl;//
+    }else{
+        if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
+            serverBInfo->ai_addr, serverBInfo->ai_addrlen)) == -1) {
+            perror("servermain: fail to send request to serverB");
+            exit(1);
+        }
+        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_B);
+
+        cout << "The servermain has sent a query request to ServerB" << endl;//
+    }
+    
+    // receiving query result
+    printf("serverMain: waiting to recvfrom...\n");
+    addr_len = sizeof their_addr;
+    if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
+            (struct sockaddr *)&their_addr, &addr_len)) == -1)
+    {
+        perror("recvfrom");
+        exit(1);
+    }
+    // print received info
+    printf("serverMain: got packet from %s port %d\n",
+    inet_ntop(their_addr.ss_family,
+    get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
+    ntohs(get_in_port((struct sockaddr *)&their_addr)));//
+    printf("serverMain: packet is %d bytes long\n", numbytes);//
+    buf[numbytes] = '\0';
+    printf("serverMain: packet contains \"%s\"\n", buf);//
+
+    cout << "The Main server has received the query result from server ";
+    if(serverID == 0){
+        cout << "A using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
+        cout << "serverA recommending " << buf;
+    }else{
+        cout << "B using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
+        cout << "serverB recommending " << buf;
+    }
+    return buf;
+}
+
+string process_query(char *buf)
+{
+    // get id and country from input
+    istringstream iss(buf); 
+    string id;
+    string country;
+
+    iss >> id; 
+    iss >> country;
+
+    //decide A or B
+    map<string,int>::iterator itr;
+    itr = countryMap.find(country);
+
+    if(itr != countryMap.end())
+        return send_query(id, country, itr->second); //send udp to serverA or serverB
+    else
+        return "COUNTRY_NOT_FOUND"; // country not found
 }
 
 void listen_to_clients(int sockfd)
@@ -227,15 +300,17 @@ void listen_to_clients(int sockfd)
             {
                 perror("recv");
             }
-
+            cout << "servermain received query request from client " << buf << endl;
             // send msg to serverA or serverB
-            // get result from serverA or serverB
-            int result = process_query();
-            
-            if (send(new_fd, &result, , 0) == -1) // to be finished
+            string result = process_query(buf);
+            cout << "this is the recommending result " << result << endl;
+
+            if (send(new_fd, &result, result.length(), 0) == -1) // to be finished
             {
                 perror("send");
             }
+            cout << "servermain sent query result to client " << result << endl;
+
             close(new_fd);
             exit(0);
         }
