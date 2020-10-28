@@ -135,15 +135,15 @@ void read_file()
     inFile.close();
 
     // print graph
-    for(int i = 0; i < graphs.size(); i++){
-        for(int j = 0; j < graphs[i].size(); j++){
-            for(int k = 0; k < graphs[i][j].size();k++){
-                cout << graphs[i][j][k] << " ";
-            }
-            cout << endl;
-        }
-        cout << endl;
-    }
+    // for(int i = 0; i < graphs.size(); i++){
+    //     for(int j = 0; j < graphs[i].size(); j++){
+    //         for(int k = 0; k < graphs[i][j].size();k++){
+    //             cout << graphs[i][j][k] << " ";
+    //         }
+    //         cout << endl;
+    //     }
+    //     cout << endl;
+    // }
 
     // print map
     // cout << "print out the index of corresponding country" << endl;
@@ -288,10 +288,6 @@ string query(string userId, string countryName){
     // recommend
     cout << "The server A is searching possible friends for User<" << userId << "> ..." << endl;
     int usersCount = userId_to_reindex[countryIndex].size(); //the number of the users in the country
-
-    // <>
-    cout << "This is usersCount: " << usersCount <<endl;
-    // <>
     map<int, int> unconnected; //mapping unconnected User's reindex -> number of common friends
 
     // check if user is the only user
@@ -358,32 +354,33 @@ string query(string userId, string countryName){
         return reindex_to_userId[countryIndex].at(max_common_userIndex);
     }
 
-    // no common friends with unconnected users
+    // no common friends with unconnected users, find out which unconnected user has maximum friends
     int have_max_friend_index = -1;
     int max_friend_count = -1;
-    for(int i = 0; i < usersCount; i++){
+    map<int,int>::const_iterator itr;
+    for (itr = unconnected.begin(); itr != unconnected.end(); ++itr){
         int friendCount = 0;
-        if(i != target_user_index){
-            for(int j = 0; j < usersCount; j++){
-                if(graphs[countryIndex][i][j] == 1){
-                    friendCount++;
-                }
-            }
-            if(max_friend_count == friendCount){
-                int curr_smallest_id = atoi(reindex_to_userId[countryIndex].at(max_friend_count).c_str());
-                int comparing_id = atoi(reindex_to_userId[countryIndex].at(i).c_str());
-                // cout << "curr_smallest_id:" << curr_smallest_id;//
-                // cout << " comparing_id:" << comparing_id << endl;//
-                if(comparing_id < curr_smallest_id){
-                    have_max_friend_index = i;
-                }
-                // cout << "current max count= " << max_friend_count;//
-                // cout << " from user index= " << have_max_friend_index << endl;//
-            }else if(max_friend_count < friendCount){
-                max_friend_count = friendCount;
-                have_max_friend_index = i;
+
+        for(int j = 0; j < usersCount; j++){
+            if(graphs[countryIndex][itr->first][j] == 1){
+                friendCount++;
             }
         }
+        if(max_friend_count == friendCount){
+            int curr_smallest_id = atoi(reindex_to_userId[countryIndex].at(max_friend_count).c_str());
+            int comparing_id = atoi(reindex_to_userId[countryIndex].at(itr->first).c_str());
+            // cout << "curr_smallest_id:" << curr_smallest_id;//
+            // cout << " comparing_id:" << comparing_id << endl;//
+            if(comparing_id < curr_smallest_id){
+                have_max_friend_index = itr->first;
+            }
+            // cout << "current max count= " << max_friend_count;//
+            // cout << " from user index= " << have_max_friend_index << endl;//
+        }else if(max_friend_count < friendCount){
+            max_friend_count = friendCount;
+            have_max_friend_index = itr->first;
+        }
+
     }
     cout << "no common, recommend " << have_max_friend_index << endl;//
     return reindex_to_userId[countryIndex].at(have_max_friend_index);
