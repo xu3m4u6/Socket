@@ -22,7 +22,7 @@ using namespace std;
 // Constants
 #define HOSTNAME "127.0.0.1" // localhost IP address
 #define UDP_PORT_MAIN "32718" //server Main UDP port number
-#define UDP_PORT_A "31718" //server B UDP port number
+#define UDP_PORT_B "31718" //server B UDP port number
 #define MAXBUFLEN 1000
 
 // global variables
@@ -128,7 +128,7 @@ void start_serverB(){
     }
 
     // serverB info for bind
-    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_A, &hints, &serverBInfo)) != 0) 
+    if ((status = getaddrinfo(HOSTNAME, UDP_PORT_B, &hints, &serverBInfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(0);
@@ -143,7 +143,7 @@ void start_serverB(){
         close(sockfd_UDP);
         perror("server B: binding failed");
     }
-    cout << "The server B is up and running using UDP on port <" << UDP_PORT_A << ">" << endl;
+    cout << "The server B is up and running using UDP on port <" << UDP_PORT_B << ">" << endl;
 }
 
 // get port, IPv4 or IPv6: (beej)
