@@ -246,10 +246,10 @@ string send_query(string id, string country, int serverID)
     cout << "The Main server has received the query result from server ";
     if(serverID == 0){
         cout << "A using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
-        cout << "serverA recommending " << buf;
+        cout << "serverA recommending " << buf << endl;
     }else{
         cout << "B using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
-        cout << "serverB recommending " << buf;
+        cout << "serverB recommending " << buf << endl;
     }
     return buf;
 }
@@ -274,17 +274,17 @@ string process_query(char *buf)
         return "COUNTRY_NOT_FOUND"; // country not found
 }
 
-void listen_to_clients(int sockfd)
+void listen_to_clients(int sockfd_TCP)
 {
     socklen_t sin_size;
-    struct sockaddr_storage their_addr; // 連線者的位址資訊 
+    struct sockaddr_storage their_addr; // client info
     int new_fd;
     char s[INET6_ADDRSTRLEN];
     char buf[MAXBUFLEN];
 
     while(1) { // 主要的 accept() 迴圈
         sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        new_fd = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
         if (new_fd == -1) {
             perror("accept");
             continue;
@@ -294,22 +294,22 @@ void listen_to_clients(int sockfd)
         get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
         printf("server: got connection from %s\n", s);
 
-        if (!fork()) { // 這個是 child process
-            close(sockfd); // child 不需要 listener
+        if (!fork()) { // child process
+            close(sockfd_TCP); // child 不需要 listener
             if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
             {
                 perror("recv");
             }
             cout << "servermain received query request from client " << buf << endl;
-            // send msg to serverA or serverB
+            // send query request(msg) to serverA or serverB
             string result = process_query(buf);
-            cout << "this is the recommending result " << result << endl;
+            cout << "servermain: this is the recommending result " << result << endl;
 
-            if (send(new_fd, &result, result.length(), 0) == -1) // to be finished
+            if (send(new_fd, &result, result.length(), 0) == -1) 
             {
-                perror("send");
+                perror("servermain: fail to send query result to client");
             }
-            cout << "servermain sent query result to client " << result << endl;
+            cout << "servermain sent query result to client, result: " << result << endl;
 
             close(new_fd);
             exit(0);
@@ -320,7 +320,7 @@ void listen_to_clients(int sockfd)
 
 void start_server_TCP()
 {
-    int sockfd, new_fd; // 在 sock_fd 進行 listen，new_fd 是新的連線
+    int sockfd_TCP, new_fd; // 在 sock_fd 進行 listen，new_fd 是新的連線
     struct addrinfo hints, *servinfo;
     struct sigaction sa;
     int yes=1;
@@ -329,32 +329,34 @@ void start_server_TCP()
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;//
 
-    if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     }
 
-    // bind
-    if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
+    // create
+    if ((sockfd_TCP = socket(servinfo->ai_family, servinfo->ai_socktype,
         servinfo->ai_protocol)) == -1) {
         perror("server: socket");
     }
 
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+    if (setsockopt(sockfd_TCP, SOL_SOCKET, SO_REUSEADDR, &yes,
         sizeof(int)) == -1) {
         perror("setsockopt");
         exit(1);
     }
-
-    if (bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        close(sockfd);
+    // bind
+    if (bind(sockfd_TCP, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+        close(sockfd_TCP);
         perror("server: bind");
     }
 
     freeaddrinfo(servinfo); // 全部都用這個 structure
 
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
+    // listen to client
+    if (listen(sockfd_TCP, BACKLOG) == -1) {
+        perror("fail to listen");
         exit(1);
     }
 
@@ -369,7 +371,7 @@ void start_server_TCP()
 
     printf("server: waiting for connections...\n");
 
-    listen_to_clients(sockfd);
+    listen_to_clients(sockfd_TCP);
 }
 
 int main(int argc, char *argv[]) 

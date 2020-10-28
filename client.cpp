@@ -38,36 +38,37 @@ int main(int argc, char *argv[])
     struct addrinfo hints, *servinfo;
     int rv;
     char s[INET6_ADDRSTRLEN];
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
-
-    // 用迴圈取得全部的結果，並先連線到能成功連線的
-    if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
-        servinfo->ai_protocol)) == -1) {
-        perror("client: socket");
-    }
-
-    if (connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        close(sockfd);
-        perror("client: connect");
-    }
-
-    inet_ntop(servinfo->ai_family, get_in_addr((struct sockaddr *)servinfo->ai_addr), s, sizeof s);
-
-    printf("client: connecting to %s\n", s);
+    
     printf("The client is up and running");
-
-    freeaddrinfo(servinfo); // 全部皆以這個 structure 完成
-
     while(1)
     {
+
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+
+        if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
+            fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+            return 1;
+        }
+
+        // create TCP socket
+        if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
+            servinfo->ai_protocol)) == -1) {
+            perror("client: socket");
+        }
+
+        if (connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("client: connect");
+        }
+
+        inet_ntop(servinfo->ai_family, get_in_addr((struct sockaddr *)servinfo->ai_addr), s, sizeof s);
+
+        printf("client: connecting to %s\n", s);//
+        freeaddrinfo(servinfo);
+        
+        // read input information
         string id;
         string country;
         cout << "Please enter the User ID: ";
@@ -86,20 +87,21 @@ int main(int argc, char *argv[])
         cout << id << "> in <" << country << "> to Main Server using TCP\n" << endl;
         // printf("The client has sent User'%s' and '%s' to Main Server using TCP\n", id, country.c_str());
 
-        sleep(2000);
 
-        if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) 
+        if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) //
         {
             perror("recv");
             exit(1);
         }
+        cout << "numbytes= " << numbytes << endl;
         buf[numbytes] = '\0';
-        printf("client: received '%s'\n",buf);
+        printf("client: received '%s'\n", buf);//
+        cout << buf <<" end of buf" <<endl;
 
         string result;
         istringstream iss(buf);
         iss >> result;
-        cout << "client: received " << result << endl;
+        cout << "client: received with: " << result << endl;//
         if(result == "COUNTRY_NOT_FOUND") {
             cout << country << " not found " << endl;
         } else if (result == "USER_NOT_FOUND") {

@@ -135,15 +135,15 @@ void read_file()
     inFile.close();
 
     // print graph
-    // for(int i = 0; i < graphs.size(); i++){
-    //     for(int j = 0; j < graphs[i].size(); j++){
-    //         for(int k = 0; k < graphs[i][j].size();k++){
-    //             cout << graphs[i][j][k] << " ";
-    //         }
-    //         cout << endl;
-    //     }
-    //     cout << endl;
-    // }
+    for(int i = 0; i < graphs.size(); i++){
+        for(int j = 0; j < graphs[i].size(); j++){
+            for(int k = 0; k < graphs[i][j].size();k++){
+                cout << graphs[i][j][k] << " ";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
 
     // print map
     // cout << "print out the index of corresponding country" << endl;
@@ -288,6 +288,10 @@ string query(string userId, string countryName){
     // recommend
     cout << "The server A is searching possible friends for User<" << userId << "> ..." << endl;
     int usersCount = userId_to_reindex[countryIndex].size(); //the number of the users in the country
+
+    // <>
+    cout << "This is usersCount: " << usersCount <<endl;
+    // <>
     map<int, int> unconnected; //mapping unconnected User's reindex -> number of common friends
 
     // check if user is the only user
