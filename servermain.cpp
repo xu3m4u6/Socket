@@ -21,11 +21,11 @@
 using namespace std;
 
 // Constants
-#define TCP_PORT_MAIN "33718"    //TCP port(with client): 33718
-#define UDP_PORT_MAIN "32718"    //UDP port(with server): 32718 
-#define UDP_PORT_A "30718"
-#define UDP_PORT_B "31718"
-#define HOSTNAME "127.0.0.1" // server address
+#define TCP_PORT_MAIN "33718" //TCP port(with client): 33718
+#define UDP_PORT_MAIN "32718" //UDP port(with server): 32718 
+#define UDP_PORT_A "30718" //serverA UDP port
+#define UDP_PORT_B "31718" //serverB UDP port
+#define HOSTNAME "127.0.0.1" // localhost IP address
 #define BACKLOG 10 // how many pending connections queue will hold
 #define MAXBUFLEN 1000
 
@@ -35,7 +35,7 @@ struct addrinfo hints, *serverMainInfo, *serverAInfo, *serverBInfo;
 map<string,int> countryMap;// Mapping country to corresponding backend server
 
 
-// get port, IPv4 or IPv6:
+// get port, IPv4 or IPv6: (beej)
 in_port_t get_in_port(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET)
@@ -44,7 +44,7 @@ in_port_t get_in_port(struct sockaddr *sa)
     return (((struct sockaddr_in6*)sa)->sin6_port);
 }
 
-// get sockaddr, IPv4 or IPv6:
+// get sockaddr, IPv4 or IPv6: (beej)
 void *get_in_addr(struct sockaddr *sa)
 {
   if (sa->sa_family == AF_INET) {
@@ -56,11 +56,11 @@ void *get_in_addr(struct sockaddr *sa)
 void start_server_UDP()
 {
     int status;
-    memset(&hints, 0, sizeof hints);
+    memset(&hints, 0, sizeof hints); //(beej)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
     
-    // getaddr info
+    // getaddr info (beej)
     if ((status = getaddrinfo(HOSTNAME, UDP_PORT_MAIN, &hints, &serverMainInfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
@@ -89,6 +89,7 @@ void start_server_UDP()
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
         exit(0);
     }
+    cout << "The Main Server is up and running." << endl;
 }
 
 void get_countrylist(int serverID) 
@@ -102,44 +103,29 @@ void get_countrylist(int serverID)
 
     // requesting server's country list 
     string msg = "waiting for country list";
-
     if(serverID == 0){
         if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
             serverAInfo->ai_addr, serverAInfo->ai_addrlen)) == -1) {
             perror("servermain: fail to send request to serverA");
             exit(1);
         }
-        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
-
-        cout << "The servermain has sent a request for country list to ServerA" << endl;//
     }else{
         if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
             serverBInfo->ai_addr, serverBInfo->ai_addrlen)) == -1) {
             perror("servermain: fail to send request to serverB");
             exit(1);
         }
-        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_B);
-
-        cout << "The servermain has sent a request for country list to ServerB" << endl;//
     }
     
     // receiving country list
-    printf("serverMain: waiting to recvfrom...\n");
     addr_len = sizeof their_addr;
     if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
             (struct sockaddr *)&their_addr, &addr_len)) == -1)
     {
-        perror("recvfrom");
+        perror("servermain: fail to recv country list");
         exit(1);
     }
-    // print received info
-    printf("serverMain: got packet from %s port %d\n",
-    inet_ntop(their_addr.ss_family,
-    get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
-    ntohs(get_in_port((struct sockaddr *)&their_addr)));//
-    printf("serverMain: packet is %d bytes long\n", numbytes);//
     buf[numbytes] = '\0';
-    printf("serverMain: packet contains \"%s\"\n", buf);//
 
     cout << "The Main server has received the country list from server ";
     if(serverID == 0){
@@ -185,7 +171,6 @@ void print_countryMap()
             cout << left << setw(nameWidth) << setfill(separator) << serverA[i] << "|" << endl;    
         }
     } 
-
 }
 
 void sigchld_handler(int s)
@@ -193,7 +178,7 @@ void sigchld_handler(int s)
   while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
-string send_query(string id, string country, int serverID)
+string send_query_and_rcv_result(string id, string country, int serverID)
 {
     int status;
     int numbytes;
@@ -202,7 +187,7 @@ string send_query(string id, string country, int serverID)
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
 
-    // requesting server's country list 
+    // send query request to backend server
     string msg = id + " " + country;
 
     if(serverID == 0){
@@ -211,22 +196,21 @@ string send_query(string id, string country, int serverID)
             perror("servermain: fail to send request to serverA");
             exit(1);
         }
-        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_A);//
 
-        cout << "The servermain has sent a query request to ServerA" << endl;//
+        cout << "The Main Server has sent a request from User<" << id ;
+        cout << "> to server A using UDP over port<" << UDP_PORT_MAIN << ">" << endl;
     }else{
         if ((numbytes = sendto(sockfd_UDP, msg.c_str(), MAXBUFLEN, 0,
             serverBInfo->ai_addr, serverBInfo->ai_addrlen)) == -1) {
             perror("servermain: fail to send request to serverB");
             exit(1);
         }
-        printf("servermain: sent %d bytes to %s\n", numbytes, UDP_PORT_B);
 
-        cout << "The servermain has sent a query request to ServerB" << endl;//
+        cout << "The Main Server has sent a request from User<" << id ;
+        cout << "> to server B using UDP over port<" << UDP_PORT_MAIN << ">" << endl;
     }
     
     // receiving query result
-    printf("serverMain: waiting to recvfrom...\n");
     addr_len = sizeof their_addr;
     if ((numbytes = recvfrom(sockfd_UDP, buf, MAXBUFLEN-1 , 0, 
             (struct sockaddr *)&their_addr, &addr_len)) == -1)
@@ -234,44 +218,52 @@ string send_query(string id, string country, int serverID)
         perror("recvfrom");
         exit(1);
     }
-    // print received info
-    printf("serverMain: got packet from %s port %d\n",
-    inet_ntop(their_addr.ss_family,
-    get_in_addr((struct sockaddr *)&their_addr), s, sizeof s), 
-    ntohs(get_in_port((struct sockaddr *)&their_addr)));//
-    printf("serverMain: packet is %d bytes long\n", numbytes);//
     buf[numbytes] = '\0';
-    printf("serverMain: packet contains \"%s\"\n", buf);//
 
-    cout << "The Main server has received the query result from server ";
-    if(serverID == 0){
-        cout << "A using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
-        cout << "serverA recommending " << buf << endl;
+    // print result received from backend server
+    istringstream iss(buf); 
+    string result;
+    iss >> result;
+    if(result.compare("USER_NOT_FOUND") == 0) {
+        cout << "The Main server has received \"User ID: Not found\" from server ";
     }else{
-        cout << "B using UDP over port <" << UDP_PORT_MAIN << ">" << endl;
-        cout << "serverB recommending " << buf << endl;
+        cout << "The Main server has received searching result of User<" << id << "> from server";
     }
-    return buf;
+    if(serverID == 0){
+        cout << "<A>" << endl;
+    }else {
+        cout << "<B>" << endl;
+    }
+
+    return result;
 }
 
 string process_query(char *buf)
 {
     // get id and country from input
     istringstream iss(buf); 
-    string id;
-    string country;
-
+    string id, country;
     iss >> id; 
     iss >> country;
+    cout << "The Main server has received the request on User<" << id << "> in <";
+    cout << country << "> from the client using TCP over port " << TCP_PORT_MAIN << endl;
 
-    //decide A or B
+    //decide send to server A/B or country not found
     map<string,int>::iterator itr;
     itr = countryMap.find(country);
-
-    if(itr != countryMap.end())
-        return send_query(id, country, itr->second); //send udp to serverA or serverB
-    else
-        return "COUNTRY_NOT_FOUND"; // country not found
+    if(itr != countryMap.end()){
+        cout << "<" << country << "> shows up in server ";
+        if(itr->second == 0){
+            cout << "A" << endl;
+        }else{
+            cout << "B" << endl;
+        }
+        return send_query_and_rcv_result(id, country, itr->second); //send udp to serverA or serverB
+    }
+    else{
+        cout << "<" << country << "> does not show up in server A&B" << endl;
+        return "COUNTRY_NOT_FOUND";
+    }
 }
 
 void listen_to_clients(int sockfd_TCP)
@@ -282,45 +274,48 @@ void listen_to_clients(int sockfd_TCP)
     char s[INET6_ADDRSTRLEN];
     char buf[MAXBUFLEN];
 
-    while(1) { // 主要的 accept() 迴圈
+    while(1) { // accept() loop
         sin_size = sizeof their_addr;
         new_fd = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
         if (new_fd == -1) {
-            perror("accept");
+            perror("servermain: fail to accept");
             continue;
         }
 
-        inet_ntop(their_addr.ss_family,
-        get_in_addr((struct sockaddr *)&their_addr), s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
         if (!fork()) { // child process
-            close(sockfd_TCP); // child 不需要 listener
+            close(sockfd_TCP);
             if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
             {
-                perror("recv");
+                perror("servermain: child socket fail to recv");
             }
-            cout << "servermain received query request from client " << buf << endl;
-            // send query request(msg) to serverA or serverB
+            
+            // send query request(msg) to serverA or serverB & get result
             string result = process_query(buf);
-            cout << "servermain: this is the recommending result " << result << endl;
 
-            if (send(new_fd, &result, result.length(), 0) == -1) 
+            // send result back to client
+            if (send(new_fd, result.c_str(), result.length()+1, 0) == -1) 
             {
                 perror("servermain: fail to send query result to client");
             }
-            cout << "servermain sent query result to client, result: " << result << endl;
+
+            if(result.compare("COUNTRY_NOT_FOUND") == 0) {
+                cout << "The Main Server has sent \"Country Name: Not found\" to the client using TCP over port <" << TCP_PORT_MAIN << ">" << endl;
+            } else if (result.compare("USER_NOT_FOUND") == 0) {
+                cout << "The Main Server has sent error to the client using TCP over port <" << TCP_PORT_MAIN << ">" << endl;
+            } else {
+                cout << "The Main Server has sent searching result to the client using TCP over port <" << TCP_PORT_MAIN << ">" << endl;
+            }
 
             close(new_fd);
             exit(0);
         }
-        close(new_fd); // parent 不需要這個
+        close(new_fd);
     }
 }
 
 void start_server_TCP()
 {
-    int sockfd_TCP, new_fd; // 在 sock_fd 進行 listen，new_fd 是新的連線
+    int sockfd_TCP; // TCP socket
     struct addrinfo hints, *servinfo;
     struct sigaction sa;
     int yes=1;
@@ -352,7 +347,7 @@ void start_server_TCP()
         perror("server: bind");
     }
 
-    freeaddrinfo(servinfo); // 全部都用這個 structure
+    freeaddrinfo(servinfo);
 
     // listen to client
     if (listen(sockfd_TCP, BACKLOG) == -1) {
@@ -360,7 +355,7 @@ void start_server_TCP()
         exit(1);
     }
 
-    sa.sa_handler = sigchld_handler; // 收拾全部死掉的 processes
+    sa.sa_handler = sigchld_handler; // kill all finished processes
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
 
@@ -368,8 +363,6 @@ void start_server_TCP()
         perror("sigaction");
         exit(1);
     }
-
-    printf("server: waiting for connections...\n");
 
     listen_to_clients(sockfd_TCP);
 }

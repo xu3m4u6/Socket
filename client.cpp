@@ -16,12 +16,12 @@
 using namespace std;
 
 
-#define MAXDATASIZE 100 // 我們一次可以收到的最大位原組數（number of bytes）
-#define TCP_PORT_MAIN "33718" //TCP port(with client): 33718
-#define HOSTNAME "127.0.0.1" // server address
+#define MAXDATASIZE 100 // Maximum data size we can receive at one time（number of bytes）
+#define TCP_PORT_MAIN "33718" //server Main TCP port 33718
+#define HOSTNAME "127.0.0.1" // localhost IP address
 
 
-// 取得 IPv4 或 IPv6 的 sockaddr：
+// get IPv4 or IPv6 sockaddr (beej)
 void *get_in_addr(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET) {
@@ -35,38 +35,36 @@ int main(int argc, char *argv[])
 {
     int sockfd, numbytes;
     char buf[MAXDATASIZE];
-    struct addrinfo hints, *servinfo;
+    struct addrinfo hints, *serverMainInfo;
     int rv;
     char s[INET6_ADDRSTRLEN];
     
-    printf("The client is up and running");
+    cout << "The client is up and running" << endl;
     while(1)
     {
-
+        // (beej)
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
 
-        if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
+        if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &serverMainInfo)) != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
             return 1;
         }
 
         // create TCP socket
-        if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype,
-            servinfo->ai_protocol)) == -1) {
+        if ((sockfd = socket(serverMainInfo->ai_family, serverMainInfo->ai_socktype,
+            serverMainInfo->ai_protocol)) == -1) {
             perror("client: socket");
         }
 
-        if (connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+        if (connect(sockfd, serverMainInfo->ai_addr, serverMainInfo->ai_addrlen) == -1) {
             close(sockfd);
             perror("client: connect");
         }
 
-        inet_ntop(servinfo->ai_family, get_in_addr((struct sockaddr *)servinfo->ai_addr), s, sizeof s);
-
-        printf("client: connecting to %s\n", s);//
-        freeaddrinfo(servinfo);
+        inet_ntop(serverMainInfo->ai_family, get_in_addr((struct sockaddr *)serverMainInfo->ai_addr), s, sizeof s);
+        freeaddrinfo(serverMainInfo);
         
         // read input information
         string id;
@@ -76,42 +74,40 @@ int main(int argc, char *argv[])
         cout << "Please enter the Country Name: ";
         cin >> country;
 
+        // send request
         string msg;
         msg = id + " " + country;
         if (send(sockfd, msg.c_str(), MAXDATASIZE, 0) == -1)
         {
             perror("send");
         }
-        
-        cout << "The client has sent User ";
-        cout << id << "> in <" << country << "> to Main Server using TCP\n" << endl;
-        // printf("The client has sent User'%s' and '%s' to Main Server using TCP\n", id, country.c_str());
+        cout << "The client has sent User<" << id;
+        cout << "> and <" << country << "> to Main Server using TCP" << endl;
 
-
+        // client receive from main server
         if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) //
         {
             perror("recv");
             exit(1);
         }
-        cout << "numbytes= " << numbytes << endl;
         buf[numbytes] = '\0';
-        printf("client: received '%s'\n", buf);//
-        cout << buf <<" end of buf" <<endl;
 
+        // process & print result
         string result;
-        istringstream iss(buf);
-        iss >> result;
-        cout << "client: received with: " << result << endl;//
-        if(result == "COUNTRY_NOT_FOUND") {
-            cout << country << " not found " << endl;
-        } else if (result == "USER_NOT_FOUND") {
-            cout << id << " not found " << endl;
+        stringstream ss(buf);
+        ss >> result;
+        if(result.compare("COUNTRY_NOT_FOUND") == 0) {
+            cout << "<" << country << "> not found " << endl;
+        } else if (result.compare("USER_NOT_FOUND") == 0) {
+            cout << "User " << id << " not found " << endl;
         } else {
-            cout << "The client has received results from Main Server: User<" << buf << "> is possible friend of User<" ;
+            cout << "The client has received results from Main Server: User<";
+            cout << result << "> is possible friend of User<" ;
             cout << id << "> in <" << country << ">" << endl;
         }
 
-        // printf("The client has received results from Main Server:User'%s' is possible friend of User'%s' in '%s'\n", buf, id.c_str(), country.c_str());
+        cout << "-----Start a new request-----" << endl;
+
     }
     close(sockfd);
 }
