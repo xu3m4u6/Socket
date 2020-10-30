@@ -53,6 +53,7 @@ void *get_in_addr(struct sockaddr *sa)
   return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+// create main server UDP socket
 void start_server_UDP()
 {
     int status;
@@ -92,6 +93,7 @@ void start_server_UDP()
     cout << "The Main Server is up and running." << endl;
 }
 
+// send country list request to backend server and receive country list
 void get_countrylist(int serverID) 
 {
     int status;
@@ -140,6 +142,7 @@ void get_countrylist(int serverID)
         countryMap[countryName] = serverID;
 }
 
+// print country mapping on screen
 void print_countryMap()
 {   
     vector<string> serverA;
@@ -173,11 +176,13 @@ void print_countryMap()
     } 
 }
 
+// handle finished processes
 void sigchld_handler(int s)
 {
   while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 
+// main server send query request to backend and rcv result
 string send_query_and_rcv_result(string id, string country, int serverID)
 {
     int status;
@@ -238,6 +243,7 @@ string send_query_and_rcv_result(string id, string country, int serverID)
     return result;
 }
 
+// process the request from client and decide which backend server to forward request
 string process_query(char *buf)
 {
     // get id and country from input
@@ -258,7 +264,7 @@ string process_query(char *buf)
         }else{
             cout << "B" << endl;
         }
-        return send_query_and_rcv_result(id, country, itr->second); //send udp to serverA or serverB
+        return send_query_and_rcv_result(id, country, itr->second); //send request through udp to serverA or serverB
     }
     else{
         cout << "<" << country << "> does not show up in server A&B" << endl;
@@ -266,15 +272,17 @@ string process_query(char *buf)
     }
 }
 
+// listen to clients query requests
 void listen_to_clients(int sockfd_TCP)
 {
     socklen_t sin_size;
     struct sockaddr_storage their_addr; // client info
-    int new_fd;
+    int new_fd; //child socket
     char s[INET6_ADDRSTRLEN];
     char buf[MAXBUFLEN];
 
-    while(1) { // accept() loop
+    // (beej)
+    while(1) { // accept() loop 
         sin_size = sizeof their_addr;
         new_fd = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
         if (new_fd == -1) {
@@ -289,7 +297,7 @@ void listen_to_clients(int sockfd_TCP)
                 perror("servermain: child socket fail to recv");
             }
             
-            // send query request(msg) to serverA or serverB & get result
+            // process query request and get the result
             string result = process_query(buf);
 
             // send result back to client
@@ -313,6 +321,7 @@ void listen_to_clients(int sockfd_TCP)
     }
 }
 
+// create mainserver TCP socket and call listen to client
 void start_server_TCP()
 {
     int sockfd_TCP; // TCP socket
@@ -333,25 +342,25 @@ void start_server_TCP()
     // create
     if ((sockfd_TCP = socket(servinfo->ai_family, servinfo->ai_socktype,
         servinfo->ai_protocol)) == -1) {
-        perror("server: socket");
+        perror("servermain: failed to create TCP socket");
     }
 
     if (setsockopt(sockfd_TCP, SOL_SOCKET, SO_REUSEADDR, &yes,
         sizeof(int)) == -1) {
-        perror("setsockopt");
+        perror("servermain: fail to setsockopt");
         exit(1);
     }
     // bind
     if (bind(sockfd_TCP, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
         close(sockfd_TCP);
-        perror("server: bind");
+        perror("servermain: TCP fail to bind");
     }
 
     freeaddrinfo(servinfo);
 
     // listen to client
     if (listen(sockfd_TCP, BACKLOG) == -1) {
-        perror("fail to listen");
+        perror("servermain: fail to listen to client");
         exit(1);
     }
 
@@ -360,11 +369,11 @@ void start_server_TCP()
     sa.sa_flags = SA_RESTART;
 
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-        perror("sigaction");
+        perror("servermain: sigaction failed");
         exit(1);
     }
-
-    listen_to_clients(sockfd_TCP);
+    
+    listen_to_clients(sockfd_TCP); // listen to clients query request
 }
 
 int main(int argc, char *argv[]) 
@@ -382,6 +391,5 @@ int main(int argc, char *argv[])
     freeaddrinfo(serverAInfo);
     freeaddrinfo(serverBInfo);
 
-    // close socket
-    close(sockfd_UDP);
+    close(sockfd_UDP); // close socket
 }
