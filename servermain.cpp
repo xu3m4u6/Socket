@@ -335,9 +335,8 @@ void start_server_TCP()
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(NULL, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(HOSTNAME, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     }
 
