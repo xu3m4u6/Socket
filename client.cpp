@@ -31,6 +31,7 @@ void *get_in_addr(struct sockaddr *sa)
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+
 int main(int argc, char *argv[])
 {
     int sockfd, numbytes;
@@ -38,10 +39,24 @@ int main(int argc, char *argv[])
     struct addrinfo hints, *serverMainInfo;
     int rv;
     char s[INET6_ADDRSTRLEN];
-    
+
     cout << "The client is up and running" << endl;
+
     while(1)
     {
+        // read client input
+        string id;
+        string country;
+        cout << "Please enter the User ID: ";
+        cin >> id;
+        cout << "Please enter the Country Name: ";
+        cin >> country;
+
+        // close previous socket before creating new one
+        if(sockfd){
+            close(sockfd);
+        }
+
         // (beej)
         memset(&hints, 0, sizeof hints);
         hints.ai_family = AF_UNSPEC;
@@ -55,39 +70,30 @@ int main(int argc, char *argv[])
         // create TCP socket
         if ((sockfd = socket(serverMainInfo->ai_family, serverMainInfo->ai_socktype,
             serverMainInfo->ai_protocol)) == -1) {
-            perror("client: socket");
+            perror("client: create socket failed");
         }
 
         if (connect(sockfd, serverMainInfo->ai_addr, serverMainInfo->ai_addrlen) == -1) {
             close(sockfd);
-            perror("client: connect");
+            perror("client: connect failed");
         }
 
-        inet_ntop(serverMainInfo->ai_family, get_in_addr((struct sockaddr *)serverMainInfo->ai_addr), s, sizeof s);
         freeaddrinfo(serverMainInfo);
-        
-        // read input information
-        string id;
-        string country;
-        cout << "Please enter the User ID: ";
-        cin >> id;
-        cout << "Please enter the Country Name: ";
-        cin >> country;
 
         // send request
         string msg;
         msg = id + " " + country;
         if (send(sockfd, msg.c_str(), MAXDATASIZE, 0) == -1)
         {
-            perror("send");
+            perror("client: send failed");
         }
         cout << "The client has sent User<" << id;
         cout << "> and <" << country << "> to Main Server using TCP" << endl;
-
+        
         // client receive from main server
-        if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) //
+        if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1)
         {
-            perror("recv");
+            perror("client: recv failed");
             exit(1);
         }
         buf[numbytes] = '\0';
@@ -101,13 +107,13 @@ int main(int argc, char *argv[])
         } else if (result.compare("USER_NOT_FOUND") == 0) {
             cout << "User " << id << " not found " << endl;
         } else {
-            cout << "The client has received results from Main Server: User<";
-            cout << result << "> is possible friend of User<" ;
+            cout << "The client has received results from Main Server:" << endl;
+            cout << "User<" << result << "> is possible friend of User<" ;
             cout << id << "> in <" << country << ">" << endl;
         }
 
         cout << "-----Start a new request-----" << endl;
-
     }
-    close(sockfd);
+
+    close(sockfd); //make sure the socket is closed
 }
