@@ -281,7 +281,7 @@ void listen_to_clients(int sockfd_TCP)
     char s[INET6_ADDRSTRLEN];
     char buf[MAXBUFLEN];
 
-    // (beej)
+    
     while(1) { // accept() loop 
         sin_size = sizeof their_addr;
         new_fd = accept(sockfd_TCP, (struct sockaddr *)&their_addr, &sin_size);
@@ -289,7 +289,7 @@ void listen_to_clients(int sockfd_TCP)
             perror("servermain: fail to accept");
             continue;
         }
-
+        // (beej)
         if (!fork()) { // child process
             close(sockfd_TCP);
             if (recv(new_fd, buf, MAXBUFLEN-1 , 0) == -1)
@@ -319,6 +319,7 @@ void listen_to_clients(int sockfd_TCP)
         }
         close(new_fd);
     }
+    close(sockfd_TCP);
 }
 
 // create mainserver TCP socket and call listen to client
@@ -330,10 +331,11 @@ void start_server_TCP()
     int yes=1;
     int rv;
 
+    // (beej)
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;//
+    hints.ai_flags = AI_PASSIVE;
 
     if ((rv = getaddrinfo(NULL, TCP_PORT_MAIN, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
