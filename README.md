@@ -2,9 +2,9 @@
 
 USC EE450 Socket Programming Project
 
-a. Full Name: Yu-Yi Li
+a. Full Name: 
 
-b. Student ID: 2307067718
+b. Student ID: 
 
 c. Implementation
 
@@ -53,9 +53,6 @@ d. Code files:
 
 e. The format of all the messages exchanged
 
-  For all of the messages exchanged, I make them as a string.
-    The example of the messages exchanged between servers and clients are as below:
-
     1. client:
         - Sending to servermain:
             Concatenates the userID and the country name as a string, and separate two parameters with a space
@@ -85,18 +82,18 @@ e. The format of all the messages exchanged
 
 g. Idiosyncrasy
 
-  I ran the program with given testcases on Ubuntu VM. There was no idiosyncrasy found.
+I ran the program with given test-cases on Ubuntu VM. Everything worked as the assignment required, and there was no idiosyncrasy found. 
 
 
 h. Reused code:
 
     Beej's Code: http://www.beej.us/guide/bgnet/
         - Create sockets
-        - Getaddrinfo
-        - Bind
-        - Send
-        - Receive
-
+        - getaddrinfo
+        - get_in_port
+        - get_in_addr
+        - fork
+        - sigchld_handler
 
 
 
