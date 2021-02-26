@@ -80,20 +80,5 @@ e. The format of all the messages exchanged
             e.g. When there is no user to recommend, the message will be "NONE"
 
 
-g. Idiosyncrasy
-
-I ran the program with given test-cases on Ubuntu VM. Everything worked as the assignment required, and there was no idiosyncrasy found. 
-
-
-h. Reused code:
-
-    Beej's Code: http://www.beej.us/guide/bgnet/
-        - Create sockets
-        - getaddrinfo
-        - get_in_port
-        - get_in_addr
-        - fork
-        - sigchld_handler
-
 
 
